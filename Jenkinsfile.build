@@ -1,0 +1,19 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source'
+                checkout scm
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    sh 'docker image build -t my-app:1.0.1 .'
+                }
+            }
+        }
+    }
+}

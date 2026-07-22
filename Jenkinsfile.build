@@ -15,5 +15,13 @@ pipeline {
                 }
             }
         }
+        stage('Push') {
+            steps {
+                script {
+                    sh 'docker image tag my-app:1.0.1 diphamal/devops_04_06:${BUILD_NUMBER}'
+                    sh 'docker image push diphamal/devops_04_06:${BUILD_NUMBER}'
+                }
+            }
+        }
     }
 }

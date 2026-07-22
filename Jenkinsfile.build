@@ -8,9 +8,40 @@ pipeline {
                 checkout scm
             }
         }
+
+        stage ('compile') {
+            steps {
+                script {
+                    echo 'Compiling the code'
+                    sh 'mvn -B compile'
+                }
+            }
+        }
+        stage ('test') {
+            steps {
+                script {
+                    echo 'Running the tests'
+                    sh 'mvn -B test'
+                }
+            }
+        }
+        stage ('package') {
+            steps {
+                script {
+                    echo 'Packaging the code'
+                    sh 'mvn clean -B package -DskipTests'
+                }
+            }
+            post{
+                success{
+                    archiveArtifacts artifacts: 'target/*.jar', followSymlinks: false, onlyIfSuccessful: true
+                }
+            }
+        }
         stage('Build') {
             steps {
                 script {
+                    echo 'Building the Docker image'
                     sh 'docker image build -t my-app:1.0.1 .'
                 }
             }

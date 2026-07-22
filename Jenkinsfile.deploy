@@ -48,8 +48,6 @@ pipeline{
                 }
                 
                 echo 'Running app on production environment...'
-                sh "sudo chown -R \$(whoami) \$WORKSPACE || true"
-                sh "sudo chown -R \$(whoami) \${WORKSPACE}@tmp || true"
                 withCredentials([file(credentialsId: 'prod-env-file', variable: 'SECRET_ENV_FILE')]) {
                     sh """
                     rm -f .env

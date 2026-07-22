@@ -1,0 +1,74 @@
+pipeline{
+    agent any
+    environment {
+        REGISTRY   = 'diphamal'
+        IMAGE_NAME = 'devops_04_06'
+        IMAGE_TAG  = "${BUILD_NUMBER}"
+    }
+    stages{
+        stage('Checkout'){
+            steps{
+                echo 'Checking out source'
+                checkout scm
+            }
+        }
+        stage('Copy Artifact') {
+            steps {
+                echo 'Copying the JAR file from the Build pipeline...'
+                copyArtifacts(
+                    projectName: 'myapp-build-pipeline', 
+                    filter: 'target/*.jar', 
+                    selector: lastSuccessful()
+                )
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    echo 'Building the Docker image'
+                    sh "docker image build -t ${env.REGISTRY}/${env.IMAGE_NAME}:${env.IMAGE_TAG} ."
+                }
+            }
+        }
+        stage('Push') {
+            steps {
+                script {
+                    sh "docker image tag my-app:1.0.1 ${env.REGISTRY}/${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-cred', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                        sh "docker image push ${env.REGISTRY}/${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                    }    
+                }
+            }
+        }
+        stage('Deploy to production environment') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    input message: 'Approve PRODUCTION Deployment?'
+                }
+                
+                echo 'Running app on production environment...'
+                sh "sudo chown -R \$(whoami) \$WORKSPACE || true"
+                sh "sudo chown -R \$(whoami) \${WORKSPACE}@tmp || true"
+                withCredentials([file(credentialsId: 'prod-env-file', variable: 'SECRET_ENV_FILE')]) {
+                    sh """
+                    rm -f .env
+
+                    cat \$SECRET_ENV_FILE > .env
+                    
+                    echo "REGISTRY=${env.REGISTRY}" >> .env
+                    echo "IMAGE_NAME=${env.IMAGE_NAME}" >> .env
+                    echo "IMAGE_TAG=${env.IMAGE_TAG}" >> .env
+                    
+                    docker compose pull
+                    
+                    docker compose down || true
+                    docker compose up -d
+                    
+                    rm -f .env
+                    """
+                }
+            }
+        }
+    }
+}
